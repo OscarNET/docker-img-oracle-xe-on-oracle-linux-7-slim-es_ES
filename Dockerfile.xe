@@ -1,0 +1,121 @@
+# ==============================================================================
+# OracleXE on Oracle Linux Slim - (IMAGE: oracle/linux/xe:1.00-es_ES)
+#
+# This Dockerfile allows build an image containing the Oracle Database XE on
+# Oracle Linux Slim (with Spanish-Spain AL32UTF8 support).
+#
+# Dockerfile powered by OscarNET
+# ==============================================================================
+#
+# ------------------------------------------------------------------------------
+# Notice:
+# ------------------------------------------------------------------------------
+# This file has been tested with the following hardware & software configuration:
+#   - Laptop with Intel Core i5-5300U CPU @ 2.30GHz 16GB RAM
+#   - S.O. Windows 10 version 1709 (16299.19) with Hyper-V
+#   - Docker Community Edition version 17.09.0-ce-win33 (13620)
+#       (switched to Linux containers)
+#   - Oracle SQL Developer version 4.2.0.17.089 (for connection testing)
+#
+# ------------------------------------------------------------------------------
+# Requirements for build this image
+# ------------------------------------------------------------------------------
+# (1) FILE: oracle-xe-11.2.0-1.0.x86_64.rpm.zip
+#     Download Oracle Database 11g Release 2 Express Edition for Linux x64 from:
+#        http://www.oracle.com/technetwork/database/database-technologies
+#             /express-edition/downloads/index.html
+#
+# ------------------------------------------------------------------------------
+# How to build this image
+# ------------------------------------------------------------------------------
+# Put the downloaded file in the same directory as this Dockerfile and
+# run (Windows Powershell):
+#
+#   docker build --force-rm=true --no-cache=true --memory=1g --memory-swap=2g
+#             --shm-size=1g -t oracle/linux/xe:1.00-es_ES -f Dockerfile.xe .
+#
+# ------------------------------------------------------------------------------
+# How to run this image
+# ------------------------------------------------------------------------------
+# Run (Windows Powershell):
+#
+#   docker run -p 8089:8080 -p 1521:1521 -d --memory=1g --memory-swap=2g
+#             --shm-size=1g oracle/linux/xe:1.00-es_ES
+#
+# ------------------------------------------------------------------------------
+# Connect database with following setting
+# ------------------------------------------------------------------------------
+# hostname: localhost
+# port: 1521
+# sid: xe
+# service name: xe
+# username: system
+# password: oracle
+#
+# ------------------------------------------------------------------------------
+# Pull base image
+# ------------------------------------------------------------------------------
+FROM amd64/oraclelinux:7-slim
+
+# ------------------------------------------------------------------------------
+# Maintainer
+# ------------------------------------------------------------------------------
+MAINTAINER OscarNET <ofgnet@msn.com>
+
+# ------------------------------------------------------------------------------
+# Environment variables required for this build
+# ------------------------------------------------------------------------------
+ENV ORACLE_BASE=/u01/app/oracle \
+    ORACLE_HOME=/u01/app/oracle/product/11.2.0/xe \
+    ORACLE_SID=XE \
+    NLS_CALENDAR="GREGORIAN" \
+    NLS_CHARACTERSET="AL32UTF8" \
+    NLS_COMP="BINARY" \
+    NLS_CURRENCY="€" \
+    NLS_DATE_FORMAT="DD/MM/RR" \
+    NLS_DATE_LANGUAGE="SPANISH" \
+    NLS_DUAL_CURRENCY="€" \
+    NLS_ISO_CURRENCY="SPAIN" \
+    NLS_LANG="SPANISH_SPAIN.AL32UTF8" \
+    NLS_LANGUAGE="SPANISH" \
+    NLS_LENGTH_SEMANTICS="BYTE" \
+    NLS_NCHAR_CHARACTERSET="AL32UTF8" \
+    NLS_NCHAR_CONV_EXCP="FALSE" \
+    NLS_NUMERIC_CHARACTERS=",." \
+    NLS_SORT="SPANISH" \
+    NLS_TERRITORY="SPAIN" \
+    NLS_TIME_FORMAT="HH24:MI:SSXFF" \
+    NLS_TIMESTAMP_FORMAT="DD/MM/RR HH24:MI:SSXFF" \
+    NLS_TIMESTAMP_TZ_FORMAT="DD/MM/RR HH24:MI:SSXFF TZR" \
+    NLS_TIME_TZ_FORMAT="HH24:MI:SSXFF TZR"
+
+ENV PATH=$ORACLE_HOME/bin:$PATH
+
+# ------------------------------------------------------------------------------
+# Copy binaries
+# ------------------------------------------------------------------------------
+COPY oracle-xe-11.2.0-1.0.x86_64.rpm.zip oracle-xe-fake-free-for-swapping.sh oracle-xe.rsp /tmp/OracleXE/
+COPY oracle-xe-start.sh oracle-xe-runonce-script.sql /
+
+# ------------------------------------------------------------------------------
+# Install Oracle Express Edition
+# ------------------------------------------------------------------------------
+RUN yum -y install unzip libaio bc initscripts net-tools openssl && \
+    cd /tmp/OracleXE && \
+    unzip oracle-xe-11.2.0-1.0.x86_64.rpm.zip && \
+    rm oracle-xe-11.2.0-1.0.x86_64.rpm.zip && \
+    mv /usr/bin/free /usr/bin/free.original && \
+    bash oracle-xe-fake-free-for-swapping.sh && \
+    yum -y localinstall Disk1/oracle-xe-11.2.0-1.0.x86_64.rpm && \
+    /etc/init.d/oracle-xe configure responseFile=oracle-xe.rsp && \
+    mv /usr/bin/free.original /usr/bin/free && \
+    yum clean all && \
+    rm -rf /var/cache/yum && \
+    cd / && \
+    rm -rf /tmp/OracleXE && \
+    su -p oracle -c "$ORACLE_HOME/bin/sqlplus / as sysdba @/oracle-xe-runonce-script.sql" && \
+    rm oracle-xe-runonce-script.sql
+
+CMD /oracle-xe-start.sh
+
+EXPOSE 1521 8080

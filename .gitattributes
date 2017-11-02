@@ -1,0 +1,4 @@
+*.rsp eol=lf
+*.sh eol=lf
+*.sql eol=lf
+*.xe eol=lf
